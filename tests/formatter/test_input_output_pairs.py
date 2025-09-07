@@ -23,4 +23,11 @@ def test_input_output_pair(test_name):
         with open(output_file_path, "r") as output_fh:
             input_code = input_fh.read()
             expected_output_code = output_fh.read()
-            format_and_compare(input_code, expected_output_code)
+            failure_output_path = os.path.join(
+                this_dir, DATA_DIR, f"{test_name}.output.gd"
+            )
+            format_and_compare(
+                input_code,
+                expected_output_code,
+                output_save_path=failure_output_path,
+            )

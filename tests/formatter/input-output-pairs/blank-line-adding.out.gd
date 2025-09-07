@@ -22,7 +22,7 @@ class X:
 	
 	class Y:
 		tool
-		
+	
 	# xxx
 	func baz():
 		pass

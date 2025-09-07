@@ -48,12 +48,11 @@ def format_block(
         previously_processed_line_number, dedent_line_number, context
     )
     lines_at_the_end = _remove_empty_strings_from_end(lines_at_the_end)
-    # Do not emit indentation-only separators at the end of an inner block;
-    # parent scope will manage separators. Preserve comments, drop pure blanks.
+    # Trim only trailing whitespace-only lines at end of inner blocks,
+    # preserving interior indented blanks before comments/statements.
     if context.indent > 0:
-        lines_at_the_end = [
-            (ln, l) for (ln, l) in lines_at_the_end if l.strip() != ""
-        ]
+        while len(lines_at_the_end) > 0 and lines_at_the_end[-1][1].strip() == "":
+            lines_at_the_end.pop()
     formatted_lines += lines_at_the_end
     previously_processed_line_number = dedent_line_number - 1
     return (formatted_lines, previously_processed_line_number)
@@ -73,7 +72,7 @@ def reconstruct_blank_lines_in_range(
             )
             reconstructed_lines.append(prefix + comment)
         else:
-            # Preserve indentation level for empty lines inside a block.
+            # Preserve indentation level for empty lines inside any indented block.
             # Keep global-scope separators empty.
             reconstructed_lines.append(
                 context.indent_string if context.indent > 0 else ""
@@ -133,11 +132,18 @@ def _add_extra_blanks_due_to_previous_statement(
     if forced_blanks_num is None:
         return blank_lines
     lines_to_prepend = forced_blanks_num
-    lines_to_prepend -= (
-        1 if len(blank_lines) > 0 and blank_lines[0][1].strip() == "" else 0
+    has_leading_empty = (
+        len(blank_lines) > 0 and blank_lines[0][1].strip() == ""
     )
+    lines_to_prepend -= 1 if has_leading_empty else 0
     empty_line_content = context.indent_string if context.indent > 0 else ""
     empty_line = [(None, empty_line_content)]  # type: FormattedLines
+    # If we're inside a block and the rule requires one blank after the
+    # previous statement, convert the first existing empty separator to an
+    # indented blank so class method separators are indented even if input had
+    # an empty blank.
+    if lines_to_prepend == 0 and has_leading_empty and context.indent > 0:
+        blank_lines = [(None, empty_line_content)] + blank_lines[1:]
     return lines_to_prepend * empty_line + blank_lines
 
 
@@ -161,6 +167,7 @@ def _add_extra_blanks_due_to_next_statement(
     )
     lines_to_inject = forced_blanks_num
     lines_to_inject -= empty_lines_already_in_place
+    # Insert separators; keep them indented inside blocks, empty at global scope.
     empty_line_content = context.indent_string if context.indent > 0 else ""
     empty_line = [(None, empty_line_content)]  # type: FormattedLines
     if first_empty_line_ix_from_end == -1:

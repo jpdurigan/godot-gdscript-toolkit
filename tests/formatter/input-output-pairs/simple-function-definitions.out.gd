@@ -33,6 +33,6 @@ class X:
 
 class Z:
 	extends Y
-
+	
 	func _init(a, b := 1, c: int = 1).(a, b, c) -> void:
 		pass
