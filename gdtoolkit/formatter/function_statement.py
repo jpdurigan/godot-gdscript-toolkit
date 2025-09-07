@@ -80,6 +80,68 @@ def _format_match_statement(statement: Node, context: Context) -> Outcome:
 
 
 def _format_match_branch(statement: Node, context: Context) -> Outcome:
+    # Special handling for long list-pattern branches: break with backslashes.
+    try:
+        pattern_wrapper = statement.children[0]
+        # Some grammars produce an explicit 'pattern' wrapper, others inline it.
+        # Support both: if first child is already a list, use it; otherwise dive one level.
+        pattern = (
+            pattern_wrapper
+            if getattr(pattern_wrapper, "data", None) == "list_pattern"
+            else pattern_wrapper.children[0]
+        )
+    except Exception:  # pragma: no cover - defensive: fallback to default path
+        prefix = ""
+        suffix = ":"
+        expr_position = 0
+        return _format_branch(prefix, suffix, expr_position, statement, context)
+
+    # Only apply backslash wrapping to top-level list patterns in match branches
+    if hasattr(pattern, "data") and getattr(pattern, "data", None) == "list_pattern":
+        # Extract top-level elements (skip commas)
+        from .expression_utils import is_any_comma
+        elements = [child for child in pattern.children if not is_any_comma(child)]
+
+        # Build candidate single-line header
+        if len(elements) > 0:
+            from .expression_to_str import expression_to_str
+
+            pattern_str = ", ".join(expression_to_str(e) for e in elements)
+            single_line = f"{context.indent_string}{pattern_str}:"
+            if len(single_line) <= context.max_line_length:
+                # Fits in one line: use the default branch formatting
+                prefix = ""
+                suffix = ":"
+                expr_position = 0
+                return _format_branch(prefix, suffix, expr_position, statement, context)
+
+            # If more than one element and it doesn't fit: one element per line with backslashes
+            if len(elements) > 1:
+                from .expression_to_str import expression_to_str
+                header_lines: FormattedLines = []
+                for elem in elements[:-1]:
+                    header_lines.append(
+                        (
+                            getattr(elem, "line", statement.line),
+                            f"{context.indent_string}{expression_to_str(elem)}, \\",
+                        )
+                    )
+                last_elem = elements[-1]
+                header_lines.append(
+                    (
+                        getattr(last_elem, "line", statement.line),
+                        f"{context.indent_string}{expression_to_str(last_elem)}:",
+                    )
+                )
+                # Format the body with child context
+                body_lines, last_processed_line_no = format_block(
+                    statement.children[1:],
+                    format_func_statement,
+                    context.create_child_context(statement.end_line),
+                )
+                return (header_lines + body_lines, last_processed_line_no)
+
+    # Fallback for non-list patterns or single long element: default behavior
     prefix = ""
     suffix = ":"
     expr_position = 0
