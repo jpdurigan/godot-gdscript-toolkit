@@ -1,6 +1,6 @@
 import subprocess
 
-from ..common import write_file
+from ..common import write_file, normalized_stderr
 
 
 def test_parsing_valid_file_succeeds(tmp_path):
@@ -8,7 +8,7 @@ def test_parsing_valid_file_succeeds(tmp_path):
     outcome = subprocess.run(["gdparse", dummy_file], check=False, capture_output=True)
     assert outcome.returncode == 0
     assert len(outcome.stdout.decode().splitlines()) == 0
-    assert len(outcome.stderr.decode().splitlines()) == 0
+    assert len(normalized_stderr(outcome.stderr)) == 0
 
 
 def test_parsing_valid_files_succeeds(tmp_path):
@@ -19,7 +19,7 @@ def test_parsing_valid_files_succeeds(tmp_path):
     )
     assert outcome.returncode == 0
     assert len(outcome.stdout.decode().splitlines()) == 0
-    assert len(outcome.stderr.decode().splitlines()) == 0
+    assert len(normalized_stderr(outcome.stderr)) == 0
 
 
 def test_pretty_printing_valid_files_succeeds(tmp_path):
@@ -30,7 +30,7 @@ def test_pretty_printing_valid_files_succeeds(tmp_path):
     )
     assert outcome.returncode == 0
     assert len(outcome.stdout.decode().splitlines()) > 0
-    assert len(outcome.stderr.decode().splitlines()) == 0
+    assert len(normalized_stderr(outcome.stderr)) == 0
 
 
 def test_pretty_printing_missing_file():
@@ -39,8 +39,8 @@ def test_pretty_printing_missing_file():
     )
     assert outcome.returncode == 1
     assert len(outcome.stdout.decode().splitlines()) == 0
-    assert len(outcome.stderr.decode().splitlines()) > 0
-    assert "Traceback" not in outcome.stderr.decode()
+    assert len(normalized_stderr(outcome.stderr)) > 0
+    assert "Traceback" not in "\n".join(normalized_stderr(outcome.stderr))
 
 
 def test_pretty_printing_unexpected_token():
@@ -49,8 +49,8 @@ def test_pretty_printing_unexpected_token():
     )
     assert outcome.returncode == 1
     assert len(outcome.stdout.decode().splitlines()) == 0
-    assert len(outcome.stderr.decode().splitlines()) > 0
-    assert "Traceback" not in outcome.stderr.decode()
+    assert len(normalized_stderr(outcome.stderr)) > 0
+    assert "Traceback" not in "\n".join(normalized_stderr(outcome.stderr))
 
 
 def test_pretty_printing_lark_corner_case():
@@ -66,4 +66,4 @@ func test():
     )
     assert outcome.returncode == 1
     assert len(outcome.stdout.decode().splitlines()) == 0
-    assert len(outcome.stderr.decode().splitlines()) > 0
+    assert len(normalized_stderr(outcome.stderr)) > 0
