@@ -30,9 +30,10 @@ def format_block(
                 blank_lines,
                 previous_statement_name,  # type: ignore
                 surrounding_empty_lines_table,
+                context,
             )
             blank_lines = _add_extra_blanks_due_to_next_statement(
-                blank_lines, statement.data, surrounding_empty_lines_table
+                blank_lines, statement.data, surrounding_empty_lines_table, context
             )
         formatted_lines += blank_lines
         lines, previously_processed_line_number = statement_formatter(
@@ -119,6 +120,7 @@ def _add_extra_blanks_due_to_previous_statement(
     blank_lines: FormattedLines,
     previous_statement_name: str,
     surrounding_empty_lines_table: MappingProxyType,
+    context: Context,
 ) -> FormattedLines:
     # assumption: there is no sequence of empty lines longer than 1 (in blank lines)
     forced_blanks_num = surrounding_empty_lines_table.get(previous_statement_name)
@@ -128,7 +130,8 @@ def _add_extra_blanks_due_to_previous_statement(
     lines_to_prepend -= (
         1 if len(blank_lines) > 0 and blank_lines[0][1].strip() == "" else 0
     )
-    empty_line = [(None, "")]  # type: FormattedLines
+    empty_line_content = context.indent_string if context.indent > 0 else ""
+    empty_line = [(None, empty_line_content)]  # type: FormattedLines
     return lines_to_prepend * empty_line + blank_lines
 
 
@@ -136,6 +139,7 @@ def _add_extra_blanks_due_to_next_statement(
     blank_lines: FormattedLines,
     next_statement_name: str,
     surrounding_empty_lines_table: MappingProxyType,
+    context: Context,
 ) -> FormattedLines:
     # assumption: there is no sequence of empty lines longer than 2 (in blank lines)
     forced_blanks_num = surrounding_empty_lines_table.get(next_statement_name)
@@ -151,7 +155,8 @@ def _add_extra_blanks_due_to_next_statement(
     )
     lines_to_inject = forced_blanks_num
     lines_to_inject -= empty_lines_already_in_place
-    empty_line = [(None, "")]  # type: FormattedLines
+    empty_line_content = context.indent_string if context.indent > 0 else ""
+    empty_line = [(None, empty_line_content)]  # type: FormattedLines
     if first_empty_line_ix_from_end == -1:
         return lines_to_inject * empty_line + blank_lines
     return (
