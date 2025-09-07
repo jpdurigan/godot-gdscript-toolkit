@@ -5,6 +5,15 @@
 
 This fork is intended to customize formatter rules and is being edited with the help of AI agents.
 
+## Fork-specific enhancements
+
+This fork extends the original project with several formatter improvements:
+
+- Revised function and class formatting to better preserve indentation.
+- Support for `# gdformat: off` and `# gdformat: on` tags to disable or enable formatting in selected regions.
+- Ability to break long `match` pattern lists using backslashes when a single line would exceed the maximum length.
+- Bug fixes in the linter and formatter.
+
 This project provides a set of tools for daily work with `GDScript`. At the moment it provides:
 
 - A parser that produces a parse tree for debugging and educational purposes.
