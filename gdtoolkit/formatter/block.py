@@ -48,6 +48,12 @@ def format_block(
         previously_processed_line_number, dedent_line_number, context
     )
     lines_at_the_end = _remove_empty_strings_from_end(lines_at_the_end)
+    # Do not emit indentation-only separators at the end of an inner block;
+    # parent scope will manage separators. Preserve comments, drop pure blanks.
+    if context.indent > 0:
+        lines_at_the_end = [
+            (ln, l) for (ln, l) in lines_at_the_end if l.strip() != ""
+        ]
     formatted_lines += lines_at_the_end
     previously_processed_line_number = dedent_line_number - 1
     return (formatted_lines, previously_processed_line_number)
