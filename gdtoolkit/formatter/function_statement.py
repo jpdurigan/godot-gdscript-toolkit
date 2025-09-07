@@ -100,6 +100,7 @@ def _format_match_branch(statement: Node, context: Context) -> Outcome:
     if hasattr(pattern, "data") and getattr(pattern, "data", None) == "list_pattern":
         # Extract top-level elements (skip commas)
         from .expression_utils import is_any_comma
+
         elements = [child for child in pattern.children if not is_any_comma(child)]
 
         # Build candidate single-line header
@@ -118,6 +119,7 @@ def _format_match_branch(statement: Node, context: Context) -> Outcome:
             # If more than one element and it doesn't fit: one element per line with backslashes
             if len(elements) > 1:
                 from .expression_to_str import expression_to_str
+
                 header_lines: FormattedLines = []
                 for elem in elements[:-1]:
                     header_lines.append(

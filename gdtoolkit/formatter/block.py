@@ -207,9 +207,7 @@ def _add_extra_blanks_due_to_previous_statement(
     if forced_blanks_num is None:
         return blank_lines
     lines_to_prepend = forced_blanks_num
-    has_leading_empty = (
-        len(blank_lines) > 0 and blank_lines[0][1].strip() == ""
-    )
+    has_leading_empty = len(blank_lines) > 0 and blank_lines[0][1].strip() == ""
     lines_to_prepend -= 1 if has_leading_empty else 0
     empty_line_content = context.indent_string if context.indent > 0 else ""
     empty_line = [(None, empty_line_content)]  # type: FormattedLines
