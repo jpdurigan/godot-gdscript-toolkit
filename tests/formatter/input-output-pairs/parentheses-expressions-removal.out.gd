@@ -15,6 +15,6 @@ class X:
 			"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
 		}
 		var e = x[1]
-
+	
 	func bar(x = 1, y := 1):
 		pass
