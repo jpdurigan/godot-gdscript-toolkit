@@ -19,23 +19,51 @@ def format_block(
     previous_statement_name = None
     formatted_lines = []  # type: FormattedLines
     previously_processed_line_number = context.previously_processed_line_number
-    for statement in statements:
-        blank_lines = reconstruct_blank_lines_in_range(
+    for ix, statement in enumerate(statements):
+        # Between-Statements gap handling: if any line in the gap is ignored,
+        # preserve the entire gap verbatim; otherwise reconstruct blanks.
+        if _has_ignored_in_range(
             previously_processed_line_number, statement.line, context
-        )
-        if previous_statement_name is None:
-            blank_lines = _remove_empty_strings_from_begin(blank_lines)
+        ):
+            formatted_lines += _verbatim_lines(
+                previously_processed_line_number + 1, statement.line - 1, context
+            )
         else:
-            blank_lines = _add_extra_blanks_due_to_previous_statement(
-                blank_lines,
-                previous_statement_name,  # type: ignore
-                surrounding_empty_lines_table,
-                context,
+            blank_lines = reconstruct_blank_lines_in_range(
+                previously_processed_line_number, statement.line, context
             )
-            blank_lines = _add_extra_blanks_due_to_next_statement(
-                blank_lines, statement.data, surrounding_empty_lines_table, context
-            )
-        formatted_lines += blank_lines
+            if previous_statement_name is None:
+                blank_lines = _remove_empty_strings_from_begin(blank_lines)
+            else:
+                blank_lines = _add_extra_blanks_due_to_previous_statement(
+                    blank_lines,
+                    previous_statement_name,  # type: ignore
+                    surrounding_empty_lines_table,
+                    context,
+                )
+                blank_lines = _add_extra_blanks_due_to_next_statement(
+                    blank_lines,
+                    statement.data,
+                    surrounding_empty_lines_table,
+                    context,
+                )
+            formatted_lines += blank_lines
+
+        # Statement handling: if its span intersects ignored lines, emit verbatim.
+        # Determine effective end as last non-empty/non-comment before next statement.
+        if ix < len(statements) - 1:
+            next_start_line = statements[ix + 1].line
+        else:
+            # Fallback to block dedent for last statement in this block.
+            next_start_line = _find_dedent_line_number(statement.line, context)
+        stmt_end = _effective_statement_end(statement.line, next_start_line, context)
+
+        if _has_ignored_in_span(statement.line, stmt_end, context):
+            formatted_lines += _verbatim_lines(statement.line, stmt_end, context)
+            previously_processed_line_number = stmt_end
+            previous_statement_name = statement.data
+            continue
+
         lines, previously_processed_line_number = statement_formatter(
             statement, context
         )
@@ -44,18 +72,65 @@ def format_block(
     dedent_line_number = _find_dedent_line_number(
         previously_processed_line_number, context
     )
-    lines_at_the_end = reconstruct_blank_lines_in_range(
+    # Trailing gap to dedent: preserve verbatim if it includes ignored lines,
+    # otherwise apply existing reconstruction and trimming rules.
+    if _has_ignored_in_range(
         previously_processed_line_number, dedent_line_number, context
-    )
-    lines_at_the_end = _remove_empty_strings_from_end(lines_at_the_end)
-    # Trim only trailing whitespace-only lines at end of inner blocks,
-    # preserving interior indented blanks before comments/statements.
-    if context.indent > 0:
-        while len(lines_at_the_end) > 0 and lines_at_the_end[-1][1].strip() == "":
-            lines_at_the_end.pop()
-    formatted_lines += lines_at_the_end
+    ):
+        formatted_lines += _verbatim_lines(
+            previously_processed_line_number + 1, dedent_line_number - 1, context
+        )
+    else:
+        lines_at_the_end = reconstruct_blank_lines_in_range(
+            previously_processed_line_number, dedent_line_number, context
+        )
+        lines_at_the_end = _remove_empty_strings_from_end(lines_at_the_end)
+        # Trim only trailing whitespace-only lines at end of inner blocks,
+        # preserving interior indented blanks before comments/statements.
+        if context.indent > 0:
+            while len(lines_at_the_end) > 0 and lines_at_the_end[-1][1].strip() == "":
+                lines_at_the_end.pop()
+        formatted_lines += lines_at_the_end
     previously_processed_line_number = dedent_line_number - 1
     return (formatted_lines, previously_processed_line_number)
+
+
+def _has_ignored_in_range(begin: int, end: int, context: Context) -> bool:
+    # Check if any line in (begin, end) is ignored. Lines are 1-based.
+    if end - begin <= 1:
+        return False
+    return any(context.ignore_mask[i] for i in range(begin + 1, end))
+
+
+def _has_ignored_in_span(start_line: int, end_line: int, context: Context) -> bool:
+    if end_line < start_line:
+        return False
+    return any(context.ignore_mask[i] for i in range(start_line, end_line + 1))
+
+
+def _verbatim_lines(start_line: int, end_line: int, context: Context) -> FormattedLines:
+    if start_line > end_line:
+        return []
+    return [
+        (None, context.gdscript_code_lines[i]) for i in range(start_line, end_line + 1)
+    ]
+
+
+def _effective_statement_end(
+    start_line: int, next_start_line: int, context: Context
+) -> int:
+    # Walk backwards from the line before next statement and find
+    # the last non-empty, non-comment line to cap the statement span.
+    end = max(start_line, next_start_line - 1)
+    i = end
+    while i >= start_line:
+        line = context.gdscript_code_lines[i]
+        stripped = line.strip()
+        if stripped == "" or stripped.startswith("#"):
+            i -= 1
+            continue
+        break
+    return i if i >= start_line else start_line
 
 
 def reconstruct_blank_lines_in_range(
