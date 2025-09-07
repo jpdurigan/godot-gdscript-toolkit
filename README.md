@@ -3,6 +3,8 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 
+This fork is intended to customize formatter rules and is being edited with the help of AI agents.
+
 This project provides a set of tools for daily work with `GDScript`. At the moment it provides:
 
 - A parser that produces a parse tree for debugging and educational purposes.
