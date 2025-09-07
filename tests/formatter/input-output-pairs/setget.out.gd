@@ -5,9 +5,9 @@ class X:
 	var x setget sss, ggg
 	var y setget sss
 	var z setget , ggg
-
+	
 	func sss(x):
 		pass
-
+	
 	func ggg():
 		pass

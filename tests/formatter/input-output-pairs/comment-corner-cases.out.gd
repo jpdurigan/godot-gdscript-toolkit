@@ -2,7 +2,7 @@ class X:
 	func foo():
 		pass
 		# aaaa # bbb
-
+	
 	func bar():
 		# xxx
 		var x = "##"
