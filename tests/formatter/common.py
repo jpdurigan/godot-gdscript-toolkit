@@ -10,7 +10,7 @@ def format_and_compare(input_code, expected_output_code, output_save_path=None):
     formatted_code = format_code(input_code, max_line_length=MAX_LINE_LENGTH)
     try:
         _compare(formatted_code, expected_output_code)
-    except AssertionError as exc:
+    except AssertionError:
         if output_save_path is not None:
             with open(output_save_path, "w") as fh:
                 fh.write(formatted_code)
