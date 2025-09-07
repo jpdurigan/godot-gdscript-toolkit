@@ -68,10 +68,8 @@ def _build_ignore_mask(lines: List[str]) -> List[bool]:
             continue
         # Tag lines themselves are preserved verbatim as well
         ignore_mask[i] = True
-        if m.group(1).lower() == "off":
-            in_ignore = True
-        else:  # "on"
-            in_ignore = False
+        # Map tag value to boolean mask state
+        in_ignore = m.group(1).lower() == "off"
     return ignore_mask
 
 

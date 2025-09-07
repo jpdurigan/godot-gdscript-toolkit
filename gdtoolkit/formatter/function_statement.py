@@ -7,6 +7,8 @@ from .expression import format_expression
 from .block import format_block, reconstruct_blank_lines_in_range
 from .statement_utils import format_simple_statement
 from .var_statement import format_var_statement
+from .expression_utils import is_any_comma
+from .expression_to_str import expression_to_str
 
 
 def format_func_statement(statement: Node, context: Context) -> Outcome:
@@ -79,7 +81,9 @@ def _format_match_statement(statement: Node, context: Context) -> Outcome:
     return _format_branch(prefix, suffix, expr_position, statement, context)
 
 
-def _format_match_branch(statement: Node, context: Context) -> Outcome:
+def _format_match_branch(
+    statement: Node, context: Context
+) -> Outcome:  # pylint: disable=too-many-locals
     # Special handling for long list-pattern branches: break with backslashes.
     try:
         pattern_wrapper = statement.children[0]
@@ -90,7 +94,10 @@ def _format_match_branch(statement: Node, context: Context) -> Outcome:
             if getattr(pattern_wrapper, "data", None) == "list_pattern"
             else pattern_wrapper.children[0]
         )
-    except Exception:  # pragma: no cover - defensive: fallback to default path
+    except (
+        AttributeError,
+        IndexError,
+    ):  # pragma: no cover - defensive: fallback to default path
         prefix = ""
         suffix = ":"
         expr_position = 0
@@ -99,13 +106,10 @@ def _format_match_branch(statement: Node, context: Context) -> Outcome:
     # Only apply backslash wrapping to top-level list patterns in match branches
     if hasattr(pattern, "data") and getattr(pattern, "data", None) == "list_pattern":
         # Extract top-level elements (skip commas)
-        from .expression_utils import is_any_comma
         elements = [child for child in pattern.children if not is_any_comma(child)]
 
         # Build candidate single-line header
         if len(elements) > 0:
-            from .expression_to_str import expression_to_str
-
             pattern_str = ", ".join(expression_to_str(e) for e in elements)
             single_line = f"{context.indent_string}{pattern_str}:"
             if len(single_line) <= context.max_line_length:
@@ -117,7 +121,6 @@ def _format_match_branch(statement: Node, context: Context) -> Outcome:
 
             # If more than one element and it doesn't fit: one element per line with backslashes
             if len(elements) > 1:
-                from .expression_to_str import expression_to_str
                 header_lines: FormattedLines = []
                 for elem in elements[:-1]:
                     header_lines.append(

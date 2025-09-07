@@ -16,7 +16,7 @@ def normalized_stderr(stderr_bytes):
     """
     try:
         lines = stderr_bytes.decode().splitlines()
-    except Exception:
+    except (UnicodeDecodeError, AttributeError):
         # Fallback: treat as no stderr if decoding fails unexpectedly
         return []
 
