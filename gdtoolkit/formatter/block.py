@@ -66,7 +66,11 @@ def reconstruct_blank_lines_in_range(
             )
             reconstructed_lines.append(prefix + comment)
         else:
-            reconstructed_lines.append("")
+            # Preserve indentation level for empty lines inside a block.
+            # Keep global-scope separators empty.
+            reconstructed_lines.append(
+                context.indent_string if context.indent > 0 else ""
+            )
     reconstructed_lines = _squeeze_lines(reconstructed_lines)
     return list(zip([None for _ in range(begin + 1, end)], reconstructed_lines))
 
@@ -121,7 +125,9 @@ def _add_extra_blanks_due_to_previous_statement(
     if forced_blanks_num is None:
         return blank_lines
     lines_to_prepend = forced_blanks_num
-    lines_to_prepend -= 1 if len(blank_lines) > 0 and blank_lines[0][1] == "" else 0
+    lines_to_prepend -= (
+        1 if len(blank_lines) > 0 and blank_lines[0][1].strip() == "" else 0
+    )
     empty_line = [(None, "")]  # type: FormattedLines
     return lines_to_prepend * empty_line + blank_lines
 
@@ -140,7 +146,7 @@ def _add_extra_blanks_due_to_next_statement(
     empty_lines_already_in_place += (
         1
         if first_empty_line_ix_from_end > 0
-        and blank_lines[first_empty_line_ix_from_end - 1][1] == ""
+        and blank_lines[first_empty_line_ix_from_end - 1][1].strip() == ""
         else 0
     )
     lines_to_inject = forced_blanks_num
@@ -157,24 +163,29 @@ def _add_extra_blanks_due_to_next_statement(
 
 def _find_first_empty_line_ix_from_end(blank_lines: FormattedLines) -> int:
     for line_no, (_, line) in reversed(list(enumerate(blank_lines))):
-        if line == "":
+        if line.strip() == "":
             return line_no
     return -1
 
 
 def _squeeze_lines(lines: List[str]) -> List[str]:
+    # Treat any whitespace-only line as an empty separator and
+    # collapse consecutive separators to a single one. This allows
+    # keeping indentation on single blank lines inside blocks while
+    # still squeezing multiple blank lines.
     squeezed_lines = []
-    previous_line = None
+    previous_was_empty = False
     for line in lines:
-        if line != "" or previous_line != "":
+        is_empty = line.strip() == ""
+        if not is_empty or not previous_was_empty:
             squeezed_lines.append(line)
-        previous_line = line
+        previous_was_empty = is_empty
     return squeezed_lines
 
 
 def _remove_empty_strings_from_begin(lst: FormattedLines) -> FormattedLines:
     for i, (_, line) in enumerate(lst):
-        if line != "":
+        if line.strip() != "":
             return lst[i:]
     return []
 
