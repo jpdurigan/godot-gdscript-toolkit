@@ -1,6 +1,6 @@
 import subprocess
 
-from ..common import write_file
+from ..common import write_file, normalized_stderr
 
 
 def test_cc_on_empty_file_succeeds(tmp_path):
@@ -10,7 +10,7 @@ def test_cc_on_empty_file_succeeds(tmp_path):
     )
     assert outcome.returncode == 0
     assert len(outcome.stdout.decode().splitlines()) == 0
-    assert len(outcome.stderr.decode().splitlines()) == 0
+    assert len(normalized_stderr(outcome.stderr)) == 0
 
 
 def test_cc_on_file_with_single_function_succeeds(tmp_path):
@@ -20,4 +20,4 @@ def test_cc_on_file_with_single_function_succeeds(tmp_path):
     )
     assert outcome.returncode == 0
     assert len(outcome.stdout.decode().splitlines()) == 2
-    assert len(outcome.stderr.decode().splitlines()) == 0
+    assert len(normalized_stderr(outcome.stderr)) == 0
