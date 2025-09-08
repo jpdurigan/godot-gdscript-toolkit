@@ -23,7 +23,6 @@ Examples:
   echo 'tool' | gdformat -   # reads from STDIN
 """
 import sys
-import pkg_resources
 import difflib
 from typing import List, Tuple
 
@@ -41,6 +40,7 @@ from gdtoolkit.common.exceptions import (
     lark_unexpected_token_to_str,
     lark_unexpected_input_to_str,
 )
+from gdtoolkit.common.version import get_gdtoolkit_version
 
 import lark
 
@@ -49,9 +49,7 @@ def main():
     sys.stdout.reconfigure(encoding="utf-8")
     arguments = docopt(
         __doc__,
-        version="gdformat {}".format(
-            pkg_resources.get_distribution("gdtoolkit").version
-        ),
+        version="gdformat {}".format(get_gdtoolkit_version()),
     )
 
     if arguments["--diff"]:

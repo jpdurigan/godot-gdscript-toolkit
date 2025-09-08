@@ -13,7 +13,6 @@ Examples:
   gdradon cc file1.gd file2.gd path/
 """
 import sys
-import pkg_resources
 from typing import List
 
 from docopt import docopt
@@ -23,18 +22,14 @@ from radon.cli.colors import LETTERS_COLORS, RANKS_COLORS, RESET
 
 from gdtoolkit.common.utils import find_gd_files_from_paths
 from gdtoolkit.gd2py import convert_code
+from gdtoolkit.common.version import get_gdtoolkit_version
 
 Path = str
 
 
 def main():
     sys.stdout.reconfigure(encoding="utf-8")
-    arguments = docopt(
-        __doc__,
-        version="gdradon {}".format(
-            pkg_resources.get_distribution("gdtoolkit").version
-        ),
-    )
+    arguments = docopt(__doc__, version="gdradon {}".format(get_gdtoolkit_version()))
 
     files: List[Path] = find_gd_files_from_paths(arguments["<path>"])
     for file_path in files:

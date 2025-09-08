@@ -16,7 +16,6 @@ Options:
 """
 import sys
 import os
-import pkg_resources
 import logging
 import pathlib
 from typing import List, Optional
@@ -33,6 +32,7 @@ from gdtoolkit.common.exceptions import (
     lark_unexpected_input_to_str,
 )
 from gdtoolkit.common.utils import find_gd_files_from_paths
+from gdtoolkit.common.version import get_gdtoolkit_version
 
 
 Path = str
@@ -41,10 +41,7 @@ CONFIG_FILE_NAME = "gdlintrc"
 
 
 def main():
-    arguments = docopt(
-        __doc__,
-        version="gdlint {}".format(pkg_resources.get_distribution("gdtoolkit").version),
-    )
+    arguments = docopt(__doc__, version="gdlint {}".format(get_gdtoolkit_version()))
 
     if arguments["--verbose"]:
         logging.basicConfig(stream=sys.stdout, level=logging.INFO)
