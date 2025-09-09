@@ -104,15 +104,21 @@ def _add_standalone_comments(
             currently_inside_expression = True
             last_experssion_line_no = line_no
             continue
-        comments = remaining_comments[line_no:last_experssion_line_no]
-        remaining_comments = remaining_comments[:line_no]
-        indent = _get_greater_indent(line, postprocessed_lines[-1][1])
-        postprocessed_lines += [
-            (None, f"{indent}{comment}")
-            for comment in reversed(comments)
-            if comment is not None
-        ]
+        # Only inject comments for monotonically decreasing windows.
+        # When line numbers increase (due to nested constructs), skip this window;
+        # those comments will be picked up in subsequent adjacent windows.
+        if last_experssion_line_no is not None and line_no < last_experssion_line_no:
+            comments = remaining_comments[line_no:last_experssion_line_no]
+            remaining_comments = remaining_comments[:line_no]
+            indent = _get_greater_indent(line, postprocessed_lines[-1][1])
+            postprocessed_lines += [
+                (None, f"{indent}{comment}")
+                for comment in reversed(comments)
+                if comment is not None
+            ]
         postprocessed_lines.append((line_no, line))
+        # Update the anchor to the current line to consider the next adjacent window
+        last_experssion_line_no = line_no
 
     return list(reversed(postprocessed_lines))
 
