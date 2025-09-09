@@ -13,7 +13,6 @@ Options:
   --version     Show version.
 """
 import sys
-import pkg_resources
 from typing import Dict
 
 import lark
@@ -24,14 +23,13 @@ from gdtoolkit.common.exceptions import (
     lark_unexpected_token_to_str,
     lark_unexpected_input_to_str,
 )
+from gdtoolkit.common.version import get_gdtoolkit_version
 
 
 def main():
     arguments = docopt(
         __doc__,
-        version="gdparse {}".format(
-            pkg_resources.get_distribution("gdtoolkit").version
-        ),
+        version="gdparse {}".format(get_gdtoolkit_version()),
     )
     files = arguments["<file>"]
 

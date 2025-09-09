@@ -6,7 +6,7 @@ and to get an intermediate representation as a Lark Tree.
 import os
 import pickle
 import sys
-import pkg_resources
+from gdtoolkit.common.version import get_gdtoolkit_version
 
 from lark import Lark, Tree, indenter
 from lark.grammar import Rule
@@ -77,7 +77,7 @@ class Parser:
         add_metadata: bool = False,
         grammar_filename: str = "gdscript.lark",
     ) -> Tree:
-        version: str = pkg_resources.get_distribution("gdtoolkit").version
+        version: str = get_gdtoolkit_version()
 
         tree: Tree = None
         cache_filepath: str = (
