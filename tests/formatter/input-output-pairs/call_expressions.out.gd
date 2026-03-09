@@ -31,17 +31,17 @@ class Y:
 		a28
 	):
 		pass
-	
+
 	func g():
 		pass
 
 
 class X:
 	extends Y
-	
+
 	func bar():
 		pass
-	
+
 	func foo(a):
 		var x = bar()
 		var z = a.b.c(1, 2)

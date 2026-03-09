@@ -1,7 +1,7 @@
 func a():
 	var b  # breaking comments conventions
 	var ccccc  # breaking comments conventions
-	
+
 	var test = c(b, ccccc, b)
 
 

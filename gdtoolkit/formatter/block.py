@@ -18,7 +18,7 @@ from .annotation import (
 )
 
 
-def format_block(
+def format_block(  # pylint: disable=too-many-locals,too-many-branches
     statements: List[Tree],
     statement_formatter: Callable,
     context: Context,
