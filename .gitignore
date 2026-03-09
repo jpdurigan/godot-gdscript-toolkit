@@ -6,9 +6,4 @@ gdtoolkit.egg-info/
 dist/
 /logs
 build
-
-# Python virtual environments
-.venv/
-venv/
-ENV/
-env/
+.hypothesis/

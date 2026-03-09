@@ -1,7 +1,8 @@
 # GDScript Toolkit
-[![](https://github.com/Scony/godot-gdscript-toolkit/workflows/Tests/badge.svg?branch=master)](https://github.com/Scony/godot-gdscript-toolkit/actions)
+[![](https://github.com/Scony/godot-gdscript-toolkit/workflows/Tests/badge.svg)](https://github.com/Scony/godot-gdscript-toolkit/actions)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
+[![Buy me a coffe](https://img.shields.io/badge/Buy%20me%20a%20coffe-FF5E5B?logo=ko-fi&logoColor=white)](https://ko-fi.com/pawel_lampe)
 
 This fork is intended to customize formatter rules and is being edited with the help of AI agents.
 
@@ -23,17 +24,32 @@ This project provides a set of tools for daily work with `GDScript`. At the mome
 
 ## Installation
 
-To install this project you need `python3` and `pip`. 
+To install this project you need `python3` and `pip`.
+Regardless of the target version, installation is done by `pip3` command and for stable releases, it downloads the package from PyPI.
 
-Use this command to install `gdtoolkit` for `Godot 3` from PyPI repository:
+### Godot 4
 
 ```
-pip3 install 'gdtoolkit==3.*'
+pip3 install "gdtoolkit==4.*"
+# or
+pipx install "gdtoolkit==4.*"
 ```
 
-Alternatively, you can install latest (potentially unstable) version directly from git:
+### Godot 3
+
+```
+pip3 install "gdtoolkit==3.*"
+# or
+pipx install "gdtoolkit==3.*"
+```
+
+### `master` (latest)
+
+Latest version (potentially unstable) can be installed directly from git:
 ```
 pip3 install git+https://github.com/Scony/godot-gdscript-toolkit.git
+# or
+pipx install git+https://github.com/Scony/godot-gdscript-toolkit.git
 ```
 
 ## Linting with gdlint [(more)](https://github.com/Scony/godot-gdscript-toolkit/wiki/3.-Linter)
@@ -133,6 +149,60 @@ tests/gd2py/input-output-pairs/class-level-statements.in.gd
     C 18:0 C - A (1)
 tests/gd2py/input-output-pairs/func-level-statements.in.gd
     F 1:0 foo - B (8)
+```
+
+## Using gdtoolkit's GitHub action
+
+In order to setup a simple action with gdtoolkit's static checks, the base action from this repo can be used:
+
+```
+name: Static checks
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  static-checks:
+    name: 'Static checks'
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - uses: Scony/godot-gdscript-toolkit@master
+    - run: gdformat --check source/
+    - run: gdlint source/
+```
+
+See the discussion in https://github.com/Scony/godot-gdscript-toolkit/issues/239 for more details.
+
+## Using gdtookit in pre-commit
+
+To add gdtookit as a pre-commit hook check the latest GitHub version (eg `4.2.2`) and add the followingto your `pre-commit-config.yaml` with the latest version.
+
+```Yaml
+repos:
+  # GDScript Toolkit
+  - repo: https://github.com/Scony/godot-gdscript-toolkit
+    rev: 4.2.2
+    hooks:
+      - id: gdlint
+        name: gdlint
+        description: "gdlint - linter for GDScript"
+        entry: gdlint
+        language: python
+        language_version: python3
+        require_serial: true
+        types: [gdscript]
+      - id: gdformat
+        name: gdformat
+        description: "gdformat - formatter for GDScript"
+        entry: gdformat
+        language: python
+        language_version: python3
+        require_serial: true
+        types: [gdscript]
 ```
 
 ## Development [(more)](https://github.com/Scony/godot-gdscript-toolkit/wiki/5.-Development)

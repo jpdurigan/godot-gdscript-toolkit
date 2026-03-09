@@ -71,11 +71,11 @@ def test_class_name_nok(code):
 @pytest.mark.parametrize('code', [
 """
 class _SubClassName:
-    tool
+    pass
 """,
 """
 class SubClassName:
-    tool
+    pass
 """,
 ])
 def test_sub_class_name_ok(code):
@@ -85,11 +85,11 @@ def test_sub_class_name_ok(code):
 @pytest.mark.parametrize('code', [
 """
 class SubClassName_:
-    tool
+    pass
 """,
 """
 class sub_class_name:
-    tool
+    pass
 """,
 ])
 def test_sub_class_name_nok(code):
@@ -193,6 +193,18 @@ def test_enum_element_name_nok(code):
     for aaa_bbb in y:
         pass
 """,
+"""func foo():
+    for _x: int in y:
+        pass
+""",
+"""func foo():
+    for xyz: int in y:
+        pass
+""",
+"""func foo():
+    for aaa_bbb: int in y:
+        pass
+""",
 ])
 def test_loop_variable_name_ok(code):
     simple_ok_check(code)
@@ -209,6 +221,18 @@ def test_loop_variable_name_ok(code):
 """,
 """func foo():
     for X_X in y:
+        pass
+""",
+"""func foo():
+    for x_: int in y:
+        pass
+""",
+"""func foo():
+    for xX: int in y:
+        pass
+""",
+"""func foo():
+    for X_X: int in y:
         pass
 """,
 ])
@@ -265,6 +289,10 @@ func foo():
 func foo():
     var y : int
 """,
+"""
+func foo() -> void:
+    var y: float = get("bar")
+""",
 ])
 def test_function_variable_name_ok(code):
     simple_ok_check(code)
@@ -312,6 +340,9 @@ def test_function_preload_variable_name_nok(code):
 const X = 1
 """,
 """
+const _X = 2
+""",
+"""
 const X_Y_Z = 2
 """,
 ])
@@ -322,9 +353,6 @@ def test_constant_name_ok(code):
 @pytest.mark.parametrize('code', [
 """
 const Xx = 1
-""",
-"""
-const _X = 2
 """,
 """
 const x_x = 2

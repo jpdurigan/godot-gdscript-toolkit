@@ -1,121 +1,137 @@
 from functools import partial
 from types import MappingProxyType
-from typing import Callable, List, Tuple
+from typing import List
 
-from lark import Token, Tree
+from lark import Tree
+
+from ..common.ast import AbstractSyntaxTree, Class, Statement, Annotation
+from ..common.utils import find_name_token_among_children, get_line, get_column
 
 from .problem import Problem
-from .helpers import find_name_token_among_children, is_function_public
+from .helpers import is_function_public
 
 
 def lint(parse_tree: Tree, config: MappingProxyType) -> List[Problem]:
     disable = config["disable"]
-    checks_to_run_w_tree = [
-        (
-            "private-method-call",
-            _private_method_call_check,
-        ),
+    checks_to_run_w_ast = [
         (
             "class-definitions-order",
             partial(_class_definitions_order_check, config["class-definitions-order"]),
         ),
-    ]  # type: List[Tuple[str, Callable]]
-    problem_clusters = map(
-        lambda x: x[1](parse_tree) if x[0] not in disable else [], checks_to_run_w_tree
+    ]
+    ast = AbstractSyntaxTree(parse_tree)
+    problem_clusters = (
+        function(ast) if name not in disable else []
+        for name, function in checks_to_run_w_ast
     )
-    problems = [problem for cluster in problem_clusters for problem in cluster]
-    return problems
+    return [problem for cluster in problem_clusters for problem in cluster]
 
 
-def _private_method_call_check(parse_tree: Tree) -> List[Problem]:
-    problems = []
-    for getattr_call in parse_tree.find_data("getattr_call"):
-        _getattr = getattr_call.children[0]
-        callee_name_token = _getattr.children[-1]
-        callee_name = callee_name_token.value
-        called = _getattr.children[-3]
-        if (
-            isinstance(called, Token)
-            and called.type == "NAME"
-            and called.value == "self"
-        ):
-            continue
-        if not _is_method_private(callee_name):
-            continue
-        problems.append(
-            Problem(
-                name="private-method-call",
-                description='Private method "{}" has been called'.format(callee_name),
-                line=callee_name_token.line,
-                column=callee_name_token.column,
-            )
-        )
-    return problems
-
-
-def _is_method_private(method_name: str) -> bool:
-    return method_name.startswith("_")  # TODO: consider making configurable
-
-
-def _class_definitions_order_check(order, parse_tree: Tree) -> List[Problem]:
-    problems = _class_definitions_order_check_for_class(
-        "global scope", parse_tree.children, order
-    )
-    for class_def in parse_tree.find_data("class_def"):
-        class_name = class_def.children[0].value
-        problems += _class_definitions_order_check_for_class(
-            "class {}".format(class_name), class_def.children, order
-        )
-    return problems
+def _class_definitions_order_check(
+    order: List[str], ast: AbstractSyntaxTree
+) -> List[Problem]:
+    return [
+        problem
+        for a_class in ast.all_classes
+        for problem in _class_definitions_order_check_for_class(a_class, order)
+    ]
 
 
 def _class_definitions_order_check_for_class(
-    class_name: str, class_children, order
+    a_class: Class, order: List[str]
 ) -> List[Problem]:
-    stmt_to_section_mapping = {
-        "tool_stmt": "tools",
-        "signal_stmt": "signals",
-        "extends_stmt": "extends",
-        "classname_stmt": "classnames",
-        "const_stmt": "consts",
-        "export_stmt": "exports",
-        "enum_def": "enums",
-    }
-    visibility_dependent_stmt_to_section_mapping = {
-        "class_var_stmt": {"pub": "pubvars", "prv": "prvvars"},
-        "onready_stmt": {"pub": "onreadypubvars", "prv": "onreadyprvvars"},
-    }
     problems = []
     current_section = order[0]
-    for class_child in class_children:
-        if not isinstance(class_child, Tree):
+    for statement in a_class.statements:
+        if _is_statement_irrelevant(statement):
             continue
-        stmt = class_child.data
-        if stmt == "class_var_stmt":
-            visibility = _class_var_stmt_visibility(class_child)
-            section = visibility_dependent_stmt_to_section_mapping[stmt][visibility]
-        elif stmt == "onready_stmt":
-            class_var_stmt = class_child.children[0]
-            visibility = _class_var_stmt_visibility(class_var_stmt)
-            section = visibility_dependent_stmt_to_section_mapping[stmt][visibility]
-        else:
-            section = stmt_to_section_mapping.get(stmt, "others")
-        section_rank = order.index(section)
-        if section_rank >= order.index(current_section):
-            current_section = section
-        else:
+        try:
+            current_section_rank = order.index(current_section)
+            statement_section = _map_statement_to_section(statement)
+            section_rank = order.index(statement_section)
+            if section_rank >= current_section_rank:
+                current_section = statement_section
+            else:
+                problems.append(
+                    Problem(
+                        name="class-definitions-order",
+                        description="Definition out of order in {}".format(
+                            a_class.name
+                        ),
+                        line=get_line(statement.lark_node),
+                        column=get_column(statement.lark_node),
+                    )
+                )
+        except ValueError:
             problems.append(
                 Problem(
                     name="class-definitions-order",
-                    description="Definition out of order in {}".format(class_name),
-                    line=class_child.line,
-                    column=class_child.column,
+                    description=" ".join(
+                        [
+                            "Definition order not specified for '{}' or '{}',",
+                            "please fix/re-generate your gdlintrc file",
+                        ]
+                    ).format(current_section, statement_section),
+                    line=get_line(statement.lark_node),
+                    column=get_column(statement.lark_node),
                 )
             )
     return problems
 
 
-def _class_var_stmt_visibility(class_var_stmt) -> str:
+def _is_statement_irrelevant(statement: Statement) -> bool:
+    if statement.kind == "pass_stmt":
+        return True
+    if statement.kind == "annotation":
+        return Annotation(statement.lark_node).name != "tool"
+    if statement.kind == "class_def":
+        return True
+    return False
+
+
+# pylint: disable-next=too-many-return-statements, too-many-branches
+def _map_statement_to_section(statement: Statement) -> str:
+    if statement.kind == "class_var_stmt":
+        if any(
+            annotation.name.startswith("export") for annotation in statement.annotations
+        ):
+            return "exports"
+        if any(annotation.name == "onready" for annotation in statement.annotations):
+            return "onready{}vars".format(
+                _class_var_stmt_visibility(statement.lark_node)
+            )
+        return "{}vars".format(_class_var_stmt_visibility(statement.lark_node))
+    if statement.kind == "signal_stmt":
+        return "signals"
+    if statement.kind == "extends_stmt":
+        return "extends"
+    if statement.kind == "classname_extends_stmt":
+        return "extends"
+    if statement.kind == "enum_stmt":
+        return "enums"
+    if statement.kind == "classname_stmt":
+        return "classnames"
+    if statement.kind == "const_stmt":
+        return "consts"
+    if (
+        statement.kind == "annotation"
+        and Annotation(statement.lark_node).name == "tool"
+    ):
+        return "tools"
+    if statement.kind == "func_def":
+        return "others"
+    if statement.kind == "static_func_def":
+        return "others"
+    if statement.kind == "abstract_func_def":
+        return "others"
+    if statement.kind == "docstr_stmt":
+        return "docstrings"
+    if statement.kind == "static_class_var_stmt":
+        return "staticvars"
+    raise NotImplementedError
+
+
+def _class_var_stmt_visibility(class_var_stmt: Tree) -> str:
     some_var_stmt = class_var_stmt.children[0]
     name_token = find_name_token_among_children(some_var_stmt)
-    return "pub" if is_function_public(name_token.value) else "prv"
+    return "pub" if is_function_public(name_token.value) else "prv"  # type: ignore

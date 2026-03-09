@@ -20,6 +20,7 @@ import logging
 import pathlib
 from typing import List, Optional
 from types import MappingProxyType
+from importlib.metadata import version as pkg_version
 
 import lark
 import yaml
@@ -32,7 +33,6 @@ from gdtoolkit.common.exceptions import (
     lark_unexpected_input_to_str,
 )
 from gdtoolkit.common.utils import find_gd_files_from_paths
-from gdtoolkit.common.version import get_gdtoolkit_version
 
 
 Path = str
@@ -41,7 +41,10 @@ CONFIG_FILE_NAME = "gdlintrc"
 
 
 def main():
-    arguments = docopt(__doc__, version="gdlint {}".format(get_gdtoolkit_version()))
+    arguments = docopt(
+        __doc__,
+        version="gdlint {}".format(pkg_version("gdtoolkit")),
+    )
 
     if arguments["--verbose"]:
         logging.basicConfig(stream=sys.stdout, level=logging.INFO)
@@ -77,8 +80,8 @@ def main():
 def _dump_default_config() -> None:
     # TODO: error handling
     assert not os.path.isfile(CONFIG_FILE_NAME)
-    with open(CONFIG_FILE_NAME, "w", encoding="utf-8") as fh:
-        fh.write(yaml.dump(DEFAULT_CONFIG.copy()))
+    with open(CONFIG_FILE_NAME, "w", encoding="utf-8") as handle:
+        handle.write(yaml.dump(DEFAULT_CONFIG.copy()))
     sys.exit(0)
 
 
@@ -102,8 +105,8 @@ def _load_config_file_or_default(config_file_path: Optional[str]) -> MappingProx
     # TODO: error handling
     if config_file_path is not None:
         logging.info("Config file found: '%s'", config_file_path)
-        with open(config_file_path, "r", encoding="utf-8") as fh:
-            return yaml.load(fh.read(), Loader=yaml.Loader)
+        with open(config_file_path, "r", encoding="utf-8") as handle:
+            return yaml.load(handle.read(), Loader=yaml.Loader)
 
     logging.info("""No 'gdlintrc' nor '.gdlintrc' found. Using default config...""")
     return DEFAULT_CONFIG
@@ -126,31 +129,39 @@ def _update_config_with_missing_entries_inplace(config: dict) -> None:
 
 def _lint_file(file_path: str, config: MappingProxyType) -> int:
     try:
-        with open(file_path, "r", encoding="utf-8") as fh:
-            content = fh.read()
+        with open(file_path, "r", encoding="utf-8") as handle:
+            content = handle.read()
             problems = lint_code(content, config)
             if len(problems) > 0:  # TODO: friendly frontend like in halint
                 for problem in problems:
                     print_problem(problem, file_path)
             return len(problems)
-    except OSError as e:
+    except OSError as exception:
         print(
-            "Cannot open file '{}': {}".format(file_path, e.strerror),
+            "Cannot open file '{}': {}".format(file_path, exception.strerror),
             file=sys.stderr,
         )
         return 1
-    except lark.exceptions.UnexpectedToken as e:
+    except lark.exceptions.UnexpectedToken as exception:
         print(
             f"{file_path}:\n",
-            lark_unexpected_token_to_str(e, content),
+            lark_unexpected_token_to_str(exception, content),
             sep="\n",
             file=sys.stderr,
         )
         return 1
-    except lark.exceptions.UnexpectedInput as e:
+    except lark.exceptions.UnexpectedInput as exception:
         print(
             f"{file_path}:\n",
-            lark_unexpected_input_to_str(e),
+            lark_unexpected_input_to_str(exception),
+            sep="\n",
+            file=sys.stderr,
+        )
+        return 1
+    except lark.indenter.DedentError as exception:
+        print(
+            f"{file_path}:\n",
+            str(exception),
             sep="\n",
             file=sys.stderr,
         )

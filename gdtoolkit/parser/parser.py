@@ -4,27 +4,17 @@ Provides a function to parse GDScript code
 and to get an intermediate representation as a Lark Tree.
 """
 import os
-import pickle
 import sys
-from gdtoolkit.common.version import get_gdtoolkit_version
+from importlib.metadata import version as pkg_version
 
-from lark import Lark, Tree, indenter
-from lark.grammar import Rule
-from lark.lexer import TerminalDef
+from lark import Lark, Tree
 
-
-class Indenter(indenter.Indenter):
-    NL_type = "_NL"
-    OPEN_PAREN_types = ["LPAR", "LSQB", "LBRACE"]
-    CLOSE_PAREN_types = ["RPAR", "RSQB", "RBRACE"]
-    INDENT_type = "_INDENT"
-    DEDENT_type = "_DEDENT"
-    # TODO: guess tab length
-    tab_len = 4
+from .gdscript_indenter import GDScriptIndenter
 
 
-# When upgrading to Python 3.8, replace with functools.cached_property
-class cached_property:
+# TODO: when upgrading to Python 3.8, replace with functools.cached_property
+# pylint: disable=too-few-public-methods
+class CachedProperty:
     """A property that is only computed once per instance and then replaces
     itself with an ordinary attribute. Deleting the attribute resets the
     property.
@@ -52,20 +42,23 @@ class Parser:
         self._cache_dirpath: str = os.path.join(get_cache_directory(), "gdtoolkit")
 
     def parse(self, code: str, gather_metadata: bool = False) -> Tree:
-        """Parses GDScript code and returns an intermediate representation as a Lark Tree.
+        """Parses GDScript code and returns intermediate representation as a Lark Tree.
         If gather_metadata is True, parsing is slower but the returned Tree comes with
         line and column numbers for statements and rules.
         """
-        code += "\n"  # to overcome lark bug (#489)
+        # adding newline at the end of code
+        # workarounds a few corner cases not addressed in the grammar
+        adjusted_code = code + "\n"
+        # pylint: disable=no-member
         return (
-            self._parser_with_metadata.parse(code)
+            self._parser_with_metadata.parse(adjusted_code)
             if gather_metadata
-            else self._parser.parse(code)
+            else self._parser.parse(adjusted_code)
         )
 
     def parse_comments(self, code: str) -> Tree:
         """Parses GDScript code and returns comments - both standalone, and inline."""
-        code += "\n"  # to overcome lark bug (#489)
+        # pylint: disable=no-member
         return self._comment_parser.parse(code)
 
     def disable_grammar_caching(self) -> None:
@@ -76,78 +69,43 @@ class Parser:
         name: str,
         add_metadata: bool = False,
         grammar_filename: str = "gdscript.lark",
-    ) -> Tree:
-        version: str = get_gdtoolkit_version()
-
-        tree: Tree = None
-        cache_filepath: str = (
-            os.path.join(self._cache_dirpath, version, name) + ".pickle"
-        )
+    ) -> Lark:
+        version: str = pkg_version("gdtoolkit")
+        cache_dirpath: str = os.path.join(self._cache_dirpath, version)
+        cache_filepath: str = os.path.join(cache_dirpath, name) + ".pickle"
         grammar_filepath: str = os.path.join(self._directory, grammar_filename)
 
-        tree = None
-        if os.path.exists(cache_filepath) and self._use_grammar_cache:
-            try:
-                tree = self.load(cache_filepath)
-            except ValueError:
-                # pickle errors on unsupported protocols - newer python versions (#93)
-                pass
-        if tree is None:
-            tree = Lark.open(
-                grammar_filepath,
-                parser="lalr",
-                start="start",
-                postlex=Indenter(),
-                propagate_positions=add_metadata,
-                maybe_placeholders=False,
-            )
-            self.save(tree, cache_filepath)
+        # TODO: catch IO exception
+        if not os.path.exists(cache_dirpath):
+            os.makedirs(cache_dirpath)
 
-        return tree
+        # TODO: catch IO exception
+        a_parser = Lark.open(
+            grammar_filepath,
+            parser="lalr",
+            start="start",
+            postlex=GDScriptIndenter(),  # type: ignore
+            propagate_positions=add_metadata,
+            maybe_placeholders=False,
+            cache=cache_filepath,
+            regex=True,
+        )
 
-    @cached_property
-    def _parser(self) -> Tree:
+        return a_parser
+
+    @CachedProperty
+    def _parser(self) -> Lark:
         return self._get_parser("parser")
 
-    @cached_property
-    def _parser_with_metadata(self) -> Tree:
+    @CachedProperty
+    def _parser_with_metadata(self) -> Lark:
         return self._get_parser("parser_with_metadata", add_metadata=True)
 
-    @cached_property
-    def _comment_parser(self) -> Tree:
+    @CachedProperty
+    def _comment_parser(self) -> Lark:
         return self._get_parser(
             "parser_comments", add_metadata=True, grammar_filename="comments.lark"
         )
-
-    @staticmethod
-    def save(a_parser: Tree, path: str) -> None:
-        """Serializes the Lark parser and saves it to the disk."""
-
-        data, memo = a_parser.memo_serialize([TerminalDef, Rule])
-        write_data: dict = {
-            "data": data,
-            "memo": memo,
-        }
-
-        dirpath: str = os.path.dirname(path)
-        if not os.path.exists(dirpath):
-            os.makedirs(dirpath)
-        with open(path, "wb") as file_parser:
-            pickle.dump(write_data, file_parser)
-
-    @staticmethod
-    def load(path: str) -> Tree:
-        """Loads the Lark parser from the disk and deserializes it."""
-        with open(path, "rb") as file_parser:
-            data: dict = pickle.load(file_parser)
-            namespace = {"Rule": Rule, "TerminalDef": TerminalDef}
-            return Lark.deserialize(
-                data["data"],
-                namespace,
-                data["memo"],
-                transformer=None,
-                postlex=Indenter(),
-            )
 
 
 def get_cache_directory() -> str:

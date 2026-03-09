@@ -1,1 +1,1 @@
-extends "recursive_tool.gd".X
+extends "res://dummy.gd".X

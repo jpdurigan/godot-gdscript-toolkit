@@ -19,6 +19,7 @@ PASCAL_CASE = r"([A-Z][a-z0-9]*)+"
 SNAKE_CASE = r"[a-z][a-z0-9]*(_[a-z0-9]+)*"
 PRIVATE_SNAKE_CASE = r"_?{}".format(SNAKE_CASE)
 UPPER_SNAKE_CASE = r"[A-Z][A-Z0-9]*(_[A-Z0-9]+)*"
+PRIVATE_UPPER_SNAKE_CASE = f"_?{UPPER_SNAKE_CASE}"
 
 DEFAULT_CONFIG = MappingProxyType(
     {
@@ -39,8 +40,8 @@ DEFAULT_CONFIG = MappingProxyType(
         "loop-variable-name": PRIVATE_SNAKE_CASE,
         "enum-name": PASCAL_CASE,
         "enum-element-name": UPPER_SNAKE_CASE,
-        "constant-name": UPPER_SNAKE_CASE,
-        "load-constant-name": r"({}|{})".format(PASCAL_CASE, UPPER_SNAKE_CASE),
+        "constant-name": PRIVATE_UPPER_SNAKE_CASE,
+        "load-constant-name": r"({}|{})".format(PASCAL_CASE, PRIVATE_UPPER_SNAKE_CASE),
         # basic checks
         "duplicated-load": None,
         "expression-not-assigned": None,
@@ -55,14 +56,15 @@ DEFAULT_CONFIG = MappingProxyType(
         # unreachable # check in godot
         # using-constant-test # check in godot
         # class checks
-        "private-method-call": None,
         "class-definitions-order": [
             "tools",
             "classnames",
             "extends",
+            "docstrings",
             "signals",
             "enums",
             "consts",
+            "staticvars",
             "exports",
             "pubvars",
             "prvvars",
@@ -73,7 +75,7 @@ DEFAULT_CONFIG = MappingProxyType(
         # useless-super-delegation
         # design checks
         # max-locals
-        # max-returns
+        "max-returns": 6,
         # max-branches
         # max-statements
         # max-attributes
@@ -178,8 +180,7 @@ def _fetch_problem_inactivity_ranges(gdscript_code: str) -> Dict[str, List[Range
     for problem, range_ends in problem_range_ends.items():
         for range_end in range_ends:
             for a_range in problem_inactivity_ranges[problem]:
-                if range_end < a_range.end:
-                    a_range.end = range_end
+                a_range.end = min(a_range.end, range_end)
 
     return problem_inactivity_ranges
 
