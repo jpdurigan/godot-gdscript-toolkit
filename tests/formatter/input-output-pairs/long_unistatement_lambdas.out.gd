@@ -107,7 +107,7 @@ func foo():
 		p23
 	) -> int:
 		return 1
-
+	
 	var x5 = func baz(
 		p1,
 		p2,

@@ -57,6 +57,11 @@ func foo():
 		p23  # inline e
 		# f
 	) -> int:
+		# d
+		
+		# e
+		
+		# f
 		pass
 		pass
 		var x := [  # inline f

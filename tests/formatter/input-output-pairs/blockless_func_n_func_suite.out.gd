@@ -14,9 +14,9 @@ class Y:
 	func bar():
 		var e
 		var f
-
+	
 	var g
-
+	
 	func baz():
 		if true:
 			var h

@@ -129,5 +129,5 @@ func foo():
 		var b = [a["a1"], 1, 2, 3]
 		for bb in b:
 			break
-
+	
 	pass

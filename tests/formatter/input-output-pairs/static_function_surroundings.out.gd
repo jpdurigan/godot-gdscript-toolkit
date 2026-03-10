@@ -9,6 +9,6 @@ static func bar():
 class Foo:
 	static func foo():
 		pass
-
+	
 	static func bar():
 		pass

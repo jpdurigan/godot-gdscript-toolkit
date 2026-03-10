@@ -13,22 +13,22 @@ var w
 
 class X:
 	pass
-
+	
 	func foo():
 		pass
-
+	
 	func bar():
 		pass
-
+	
 	class Y:
 		pass
-
+	
 	# xxx
 	func baz():
 		pass
-
+	
 	# yyy
-
+	
 	func bat():
 		pass
 

@@ -23,5 +23,5 @@ func baz():
 				return 5
 			return 6
 		return 7
-
+	
 	pass
