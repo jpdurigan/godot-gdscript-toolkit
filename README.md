@@ -4,16 +4,66 @@
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 [![Buy me a coffe](https://img.shields.io/badge/Buy%20me%20a%20coffe-FF5E5B?logo=ko-fi&logoColor=white)](https://ko-fi.com/pawel_lampe)
 
-This fork is intended to customize formatter rules and is being edited with the help of AI agents.
+This fork extends [Scony/godot-gdscript-toolkit](https://github.com/Scony/godot-gdscript-toolkit) (upstream `4.5.0`) with formatter enhancements aimed at better compatibility with Godot's native script editor.
 
 ## Fork-specific enhancements
 
-This fork extends the original project with several formatter improvements:
+### 1. Indented blank lines inside blocks
 
-- Revised function and class formatting to better preserve indentation.
-- Support for `# gdformat: off` and `# gdformat: on` tags to disable or enable formatting in selected regions.
-- Ability to break long `match` pattern lists using backslashes when a single line would exceed the maximum length.
-- Bug fixes in the linter and formatter.
+Blank lines inside indented blocks (`func`, `class`, `for`, etc.) are emitted with proper indentation instead of as empty strings. This matters because Godot's built-in script editor cannot auto-indent a blank line the way a Python-aware IDE can — so a file with bare blank lines requires manual re-indentation every time the cursor lands on one of them.
+
+The difference is in the raw file bytes. In hex/cat terms:
+
+```
+# Upstream default — blank line is empty (0 bytes before newline):
+func foo():\n
+\tvar x = 1\n
+\n            ← no indentation
+\tvar y = 2\n
+
+# This fork — blank line carries a tab (1 byte before newline):
+func foo():\n
+\tvar x = 1\n
+\t\n          ← TAB preserved
+\tvar y = 2\n
+```
+
+### 2. Disable/enable formatting with `# gdformat: off` / `# gdformat: on`
+
+Regions of code can be excluded from formatting by surrounding them with these comment tags. Everything between the tags is emitted verbatim.
+
+```gdscript
+func a():
+    pass  # this gets formatted normally
+
+
+# gdformat: off
+func b():
+    var x      = 1   # manually aligned columns
+    var longer = 2   # preserved as-is
+# gdformat: on
+
+
+func c():
+    pass  # formatted again
+```
+
+### 3. Backslash line-breaking for long `match` patterns
+
+When a `match` branch has a comma-separated pattern list that would exceed the maximum line length, the formatter breaks it across multiple lines using trailing backslashes — matching GDScript's explicit line-continuation syntax.
+
+```gdscript
+# Short enough — stays on one line:
+match value:
+    A, B, C:
+        pass
+
+# Too long — broken with backslashes:
+match value:
+    VERY_LONG_CONSTANT_A, VERY_LONG_CONSTANT_B, \
+    VERY_LONG_CONSTANT_C, VERY_LONG_CONSTANT_D:
+        pass
+```
 
 This project provides a set of tools for daily work with `GDScript`. At the moment it provides:
 
