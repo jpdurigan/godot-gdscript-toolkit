@@ -18,5 +18,20 @@ func b():
 # gdformat: on
 
 
-func c(a, b, c):
+func c():
+	var b  # breaking comments conventions
+	var ccccc  # breaking comments conventions
+	
+	var test = c(b, ccccc, b)
+
+
+# gdformat: off
+func d():
 	pass
+
+
+
+
+func e():
+	pass
+# gdformat: on
