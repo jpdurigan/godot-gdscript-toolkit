@@ -1,9 +1,6 @@
-from typing import Union, Tuple, List, Optional
+from typing import Tuple, List, Optional
 
-from lark import Tree, Token
-
-
-Node = Union[Tree, Token]
 PreviouslyProcessedLineNumber = int
-FormattedLines = List[Tuple[Optional[int], str]]
+FormattedLine = Tuple[Optional[int], str]
+FormattedLines = List[FormattedLine]
 Outcome = Tuple[FormattedLines, PreviouslyProcessedLineNumber]

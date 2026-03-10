@@ -1,7 +1,8 @@
-from typing import List, Optional
+from typing import List, Optional, Iterator
 
 from lark import Tree
 
+from ..common.utils import get_line, get_column
 from .problem import Problem
 
 
@@ -22,7 +23,7 @@ def no_else_return_check(parse_tree: Tree) -> List[Problem]:
     return problems
 
 
-def _find_if_stmts(parse_tree: Tree) -> List[Tree]:
+def _find_if_stmts(parse_tree: Tree) -> Iterator[Tree]:
     return parse_tree.find_pred(_is_if_stmt)
 
 
@@ -34,8 +35,8 @@ def _check_elif_problems(if_stmt: Tree) -> List[Problem]:
             Problem(
                 name="no-elif-return",
                 description='Unnecessary "elif" after "return"',
-                line=elif_branch.line,
-                column=elif_branch.column,
+                line=get_line(elif_branch),
+                column=get_column(elif_branch),
             )
         )
     return problems
@@ -52,7 +53,7 @@ def _find_elif_branches_to_remove(if_stmt: Tree) -> List[Tree]:
     return elif_branches_to_remove
 
 
-def _find_trees_with_if_stmts(parse_tree: Tree) -> List[Tree]:
+def _find_trees_with_if_stmts(parse_tree: Tree) -> Iterator[Tree]:
     return parse_tree.find_pred(_has_if_stmt)
 
 
@@ -72,8 +73,8 @@ def _check_else_problems(if_stmt: Tree, parent_var_names: List[str]) -> List[Pro
         Problem(
             name="no-else-return",
             description='Unnecessary "else" after "return"',
-            line=else_branch.line,
-            column=else_branch.column,
+            line=get_line(else_branch),
+            column=get_column(else_branch),
         )
     ]
 
@@ -136,12 +137,12 @@ def _has_match_stmt_that_always_returns(tree: Tree) -> bool:
     )
 
 
-def _has_wildcard_pattern_branch(match_stmt: List[Tree]) -> bool:
+def _has_wildcard_pattern_branch(match_stmt: Tree) -> bool:
     match_stmt_branches = _get_match_stmt_branches(match_stmt)
     return any(_is_wildcard_pattern_branch(branch) for branch in match_stmt_branches)
 
 
-def _find_var_name(func_var_stmt: List[Tree]) -> str:
+def _find_var_name(func_var_stmt: Tree) -> str:
     return func_var_stmt.children[0].children[0].value  # type: ignore
 
 

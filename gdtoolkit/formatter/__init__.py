@@ -1,5 +1,6 @@
 from typing import Optional
 
+from types import MappingProxyType
 from lark import Tree
 
 from ..parser import parser
@@ -11,13 +12,26 @@ from .safety_checks import (  # noqa: F401
     LoosenTreeTransformer,
 )
 
+DEFAULT_CONFIG = MappingProxyType(
+    {
+        "excluded_directories": {".git"},
+        "safety_checks": None,
+        "use_spaces": None,
+        "line_length": 100,
+    }
+)
 
+
+# pylint: disable-next=too-many-arguments
+# pylint: disable=too-many-positional-arguments
+# pylint: disable=too-many-arguments
 def check_formatting_safety(
     given_code: str,
     formatted_code: str,
     max_line_length: int,
     given_code_parse_tree: Optional[Tree] = None,
     given_code_comment_parse_tree: Optional[Tree] = None,
+    spaces_for_indent: Optional[int] = None,
 ) -> None:
     if given_code == formatted_code:
         return
@@ -40,4 +54,5 @@ def check_formatting_safety(
         max_line_length,
         parse_tree=formatted_code_parse_tree,
         comment_parse_tree=formatted_code_comment_parse_tree,
+        spaces_for_indent=spaces_for_indent,
     )

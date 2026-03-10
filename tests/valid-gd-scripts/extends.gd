@@ -1,1 +1,1 @@
-extends "empty.gd"
+extends "res://dummy.gd"

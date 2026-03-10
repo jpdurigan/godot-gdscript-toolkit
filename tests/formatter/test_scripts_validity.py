@@ -4,16 +4,22 @@ import shutil
 
 import pytest
 
+from ..common import GODOT_SERVER, write_project_settings, write_file
+
 
 DATA_DIR = "./input-output-pairs"
-GODOT_SERVER = "godot-server"
-EXCEPTIONS = set(  # TODO: fix wherever possible
+EXCEPTIONS = set(
     [
-        "if-corner-case.in.gd",
-        "if-corner-case.out.gd",
-        "type-cast-expressions.in.gd",  # godot bug
-        "type-cast-expressions.out.gd",  # godot bug
-        "multiline-preload-workaround.in.gd",  # godot bug
+        # Godot bugs:
+        "bug_326_multistatement_lambda_corner_case.out.gd",
+        "bug_339_multiline_lambda.out.gd",
+        # cases where Godot does more than just parsing
+        "inline_lambdas_w_comments.in.gd",
+        "inline_lambdas_w_comments.out.gd",
+        "long_inline_lambdas.in.gd",
+        "long_inline_lambdas.out.gd",
+        "type_cast_corner_case_expressions.in.gd",
+        "type_cast_corner_case_expressions.out.gd",
     ]
 )
 
@@ -29,10 +35,23 @@ def pytest_generate_tests(metafunc):
 
 
 @pytest.mark.skipif(shutil.which(GODOT_SERVER) is None, reason="requires godot server")
-def test_script_is_valid(gdscript_path):
+@pytest.mark.godot_check_only
+def test_script_is_valid(gdscript_path, tmp_path):
+    write_project_settings(tmp_path)
+    write_file(tmp_path, "dummy.gd", "class X:\n\tpass")
     this_directory = os.path.dirname(os.path.abspath(__file__))
     directory_tests = os.path.join(this_directory, DATA_DIR)
     gdscript_full_path = os.path.join(directory_tests, gdscript_path)
-    process = subprocess.Popen([GODOT_SERVER, "--check-only", "-s", gdscript_full_path])
-    process.wait()
-    assert process.returncode == 0
+    with subprocess.Popen(
+        [
+            GODOT_SERVER,
+            "--headless",
+            "--check-only",
+            "-s",
+            gdscript_full_path,
+            "--path",
+            tmp_path,
+        ],
+    ) as process:
+        process.wait()
+        assert process.returncode == 0

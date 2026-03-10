@@ -17,15 +17,18 @@ Examples:
   gd2py ./addons/gut/gut.gd | radon cc -s -
 """
 import sys
+from importlib.metadata import version as pkg_version
 
 from docopt import docopt
 
 from . import convert_code
-from gdtoolkit.common.version import get_gdtoolkit_version
 
 
 def main():
     sys.stdout.reconfigure(encoding="utf-8")
-    arguments = docopt(__doc__, version="gd2py {}".format(get_gdtoolkit_version()))
-    with open(arguments["<path>"], "r", encoding="utf-8") as fh:
-        print(convert_code(fh.read()))
+    arguments = docopt(
+        __doc__,
+        version="gd2py {}".format(pkg_version("gdtoolkit")),
+    )
+    with open(arguments["<path>"], "r", encoding="utf-8") as handle:
+        print(convert_code(handle.read()))

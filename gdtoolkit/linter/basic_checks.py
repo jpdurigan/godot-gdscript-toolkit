@@ -3,8 +3,10 @@ from typing import Dict, List, Set
 
 from lark import Tree, Token
 
+from ..common.utils import find_name_token_among_children, get_line, get_column
+from ..formatter.expression_utils import remove_outer_parentheses, is_trailing_comma
+
 from .problem import Problem
-from .helpers import find_name_token_among_children
 
 
 def lint(parse_tree: Tree, config: MappingProxyType) -> List[Problem]:
@@ -31,8 +33,8 @@ def lint(parse_tree: Tree, config: MappingProxyType) -> List[Problem]:
             _comparison_with_itself_check,
         ),
     ]
-    problem_clusters = map(
-        lambda x: x[1](parse_tree) if x[0] not in disable else [], checks_to_run_w_tree
+    problem_clusters = (
+        x[1](parse_tree) if x[0] not in disable else [] for x in checks_to_run_w_tree
     )
     problems = [problem for cluster in problem_clusters for problem in cluster]
     return problems
@@ -50,8 +52,8 @@ def _unnecessary_pass_check(parse_tree: Tree) -> List[Problem]:
                         Problem(
                             name="unnecessary-pass",
                             description='"pass" statement not necessary',
-                            line=pass_stmt.line,
-                            column=pass_stmt.column,
+                            line=get_line(pass_stmt),
+                            column=get_column(pass_stmt),
                         )
                     )
     return problems
@@ -61,12 +63,14 @@ def _expression_not_assigned_check(parse_tree: Tree) -> List[Problem]:
     problems = []
     for expr_stmt in parse_tree.find_data("expr_stmt"):
         expr = expr_stmt.children[0]
-        child = expr.children[0]
-        if not isinstance(child, Tree) or child.data not in [
+        actual_expression = remove_outer_parentheses(expr.children[0])
+        if not isinstance(actual_expression, Tree) or actual_expression.data not in [
             "assnmnt_expr",
+            "await_expr",
             "standalone_call",
             "getattr_call",
             "string",
+            "lambda",
         ]:
             problems.append(
                 Problem(
@@ -74,8 +78,8 @@ def _expression_not_assigned_check(parse_tree: Tree) -> List[Problem]:
                     description=(
                         "expression is not asigned, and hence it can be removed"
                     ),
-                    line=child.line,
-                    column=child.column,
+                    line=get_line(actual_expression),
+                    column=get_column(actual_expression),
                 )
             )
     return problems
@@ -83,25 +87,27 @@ def _expression_not_assigned_check(parse_tree: Tree) -> List[Problem]:
 
 def _duplicated_load_check(parse_tree: Tree) -> List[Problem]:
     problems = []
-    loaded_strings = set()  # type: Set[str]
-    for call in parse_tree.find_data("standalone_call"):
+    loaded_strings: Set[str] = set()
+    for call in sorted(
+        parse_tree.find_data("standalone_call"), key=lambda rule: rule.meta.line
+    ):
         name_token = call.children[0]
         callee_name = name_token.value
         if (
             callee_name in ["load", "preload"]
             and len(call.children) > 1
-            and isinstance(call.children[2], Tree)
-            and call.children[2].data == "string"
+            and isinstance(call.children[1], Tree)
+            and call.children[1].data == "string"
         ):
-            string_rule = call.children[2]
+            string_rule = call.children[1]
             loaded_string = string_rule.children[0].value
             if loaded_string in loaded_strings:
                 problems.append(
                     Problem(
                         name="duplicated-load",
                         description="duplicated loading of {}".format(loaded_string),
-                        line=string_rule.line,
-                        column=string_rule.column,
+                        line=get_line(string_rule),
+                        column=get_column(string_rule),
                     )
                 )
             else:
@@ -109,6 +115,7 @@ def _duplicated_load_check(parse_tree: Tree) -> List[Problem]:
     return problems
 
 
+# pylint: disable=too-many-locals
 def _unused_argument_check(parse_tree: Tree) -> List[Problem]:
     problems = []
     for func_def in parse_tree.find_data("func_def"):
@@ -121,9 +128,13 @@ def _unused_argument_check(parse_tree: Tree) -> List[Problem]:
             argument_definitions = {}  # type: Dict[str, int]
             argument_tokens = {}
             func_args = func_header.children[1]
-            for func_arg in func_args.children:
-                arg_name_token = find_name_token_among_children(func_arg)
-                arg_name = arg_name_token.value
+            for func_arg in [r for r in func_args.children if not is_trailing_comma(r)]:
+                arg_name_token = find_name_token_among_children(
+                    func_arg
+                    if func_arg.data != "func_arg_variadic"
+                    else func_arg.children[0]
+                )
+                arg_name = arg_name_token.value  # type: ignore
                 argument_definitions[arg_name] = (
                     argument_definitions.get(arg_name, 0) + 1
                 )
@@ -134,8 +145,8 @@ def _unused_argument_check(parse_tree: Tree) -> List[Problem]:
                     if isinstance(node, Token) and node.type == "NAME":
                         name = node.value
                         name_occurances[name] = name_occurances.get(name, 0) + 1
-            for argument in argument_definitions:
-                if argument_definitions[argument] == name_occurances[
+            for argument, argument_definitions_number in argument_definitions.items():
+                if argument_definitions_number == name_occurances[
                     argument
                 ] and not argument.startswith("_"):
                     problems.append(
@@ -144,8 +155,8 @@ def _unused_argument_check(parse_tree: Tree) -> List[Problem]:
                             description="unused function argument '{}'".format(
                                 argument
                             ),
-                            line=argument_tokens[argument].line,
-                            column=argument_tokens[argument].column,
+                            line=get_line(argument_tokens[argument]),  # type: ignore
+                            column=get_column(argument_tokens[argument]),  # type: ignore
                         )
                     )
     return problems
@@ -160,8 +171,8 @@ def _comparison_with_itself_check(parse_tree: Tree) -> List[Problem]:
                 Problem(
                     name="comparison-with-itself",
                     description="Redundant comparison",
-                    line=comparison.line,
-                    column=comparison.column,
+                    line=get_line(comparison),
+                    column=get_column(comparison),
                 )
             )
     return problems
